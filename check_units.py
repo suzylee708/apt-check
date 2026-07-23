@@ -83,11 +83,10 @@ def check_units():
 
         options = get_dropdown_options(page)
 
-        if DEBUG:
-            log("--- 드롭다운에서 읽은 전체 텍스트 ---")
-            for o in options:
-                log(o)
-            log("--------------------------------")
+        log("--- 드롭다운에서 읽은 전체 텍스트 (총 %d개) ---" % len(options))
+        for i, o in enumerate(options):
+            log(f"[{i}] {repr(o)}")
+        log("--------------------------------")
 
         text_blob = "\n".join(options)
         if KEYWORD.lower() in text_blob.lower():

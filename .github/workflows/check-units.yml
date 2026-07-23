@@ -1,0 +1,31 @@
+name: Check 550 Clinton Avenue Unit
+
+on:
+  schedule:
+    # 10분마다 실행 (GitHub 서버 상황에 따라 몇 분 지연될 수 있음)
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}   # Actions 탭에서 수동 실행 버튼도 사용 가능
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install playwright requests
+          playwright install --with-deps chromium
+
+      - name: Run checker
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          KEYWORD: "550 Clinton"
+        run: python check_units.py

@@ -81,6 +81,16 @@ def check_units():
         if DEBUG:
             page.screenshot(path="debug_2_dropdown_open.png")
 
+        # 드롭다운 리스트는 가상 스크롤(virtualized list)이라 화면에 보이는
+        # 항목만 DOM에 렌더링됩니다. 스크롤 없이도 확인하기 위해,
+        # 검색창에 KEYWORD를 직접 입력해 Airtable이 필터링하도록 합니다.
+        search_box = page.get_by_placeholder("Search")
+        search_box.fill(KEYWORD)
+        page.wait_for_timeout(1200)
+
+        if DEBUG:
+            page.screenshot(path="debug_3_search_filtered.png")
+
         options = get_dropdown_options(page)
 
         log("--- 드롭다운에서 읽은 전체 텍스트 (총 %d개) ---" % len(options))

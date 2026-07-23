@@ -17,7 +17,12 @@ from playwright.sync_api import sync_playwright
 import requests
 
 FORM_URL = "https://airtable.com/appsseXTOVx59HC0W/pagcVengefPFQvMZC/form"
-KEYWORD = os.environ.get("KEYWORD", "550 Clinton")
+
+# 콤마(,)로 구분해서 여러 주소를 동시에 감시할 수 있습니다.
+# 예: "550 Clinton, 224 West, 42-61 Saull"
+KEYWORDS = [
+    k.strip() for k in os.environ.get("KEYWORDS", "550 Clinton").split(",") if k.strip()
+]
 
 # ntfy.sh 토픽 이름 (본인만 아는 임의의 문자열로 바꿔서 GitHub Secrets에 등록)
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "")
@@ -65,7 +70,9 @@ def get_dropdown_options(page):
 
 
 def check_units():
-    matches = []
+    # 키워드별로 매치된 유닛 목록을 저장: {"550 Clinton": ["550 Clinton Avenue - Apt 4C - ..."], ...}
+    matches_by_keyword = {}
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not DEBUG)
         page = browser.new_page()
@@ -74,53 +81,69 @@ def check_units():
         if DEBUG:
             page.screenshot(path="debug_1_loaded.png")
 
-        # "Add unit" 버튼 클릭
+        # "Add unit" 버튼 클릭 (드롭다운은 한 번만 열고, 검색어만 바꿔가며 재사용)
         page.get_by_text(ADD_UNIT_BUTTON_TEXT, exact=False).first.click()
         page.wait_for_timeout(1500)
 
         if DEBUG:
             page.screenshot(path="debug_2_dropdown_open.png")
 
-        # 드롭다운 리스트는 가상 스크롤(virtualized list)이라 화면에 보이는
-        # 항목만 DOM에 렌더링됩니다. 스크롤 없이도 확인하기 위해,
-        # 검색창에 KEYWORD를 직접 입력해 Airtable이 필터링하도록 합니다.
         search_box = page.get_by_placeholder("Search")
-        search_box.fill(KEYWORD)
-        page.wait_for_timeout(1200)
 
-        if DEBUG:
-            page.screenshot(path="debug_3_search_filtered.png")
+        for keyword in KEYWORDS:
+            # 드롭다운 리스트는 가상 스크롤(virtualized list)이라 화면에 보이는
+            # 항목만 DOM에 렌더링됩니다. 스크롤 없이도 확인하기 위해,
+            # 검색창에 keyword를 직접 입력해 Airtable이 필터링하도록 합니다.
+            search_box.fill("")
+            page.wait_for_timeout(300)
+            search_box.fill(keyword)
+            page.wait_for_timeout(1200)
 
-        options = get_dropdown_options(page)
+            if DEBUG:
+                safe_name = keyword.replace(" ", "_").replace("/", "_")
+                page.screenshot(path=f"debug_search_{safe_name}.png")
 
-        log("--- 드롭다운에서 읽은 전체 텍스트 (총 %d개) ---" % len(options))
-        for i, o in enumerate(options):
-            log(f"[{i}] {repr(o)}")
-        log("--------------------------------")
+            options = get_dropdown_options(page)
 
-        text_blob = "\n".join(options)
-        if KEYWORD.lower() in text_blob.lower():
-            matches = [
-                line.strip()
-                for line in text_blob.split("\n")
-                if KEYWORD.lower() in line.lower() and line.strip()
-            ]
+            log(f"--- '{keyword}' 검색 결과 (총 {len(options)}개) ---")
+            for i, o in enumerate(options):
+                log(f"[{i}] {repr(o)}")
+            log("--------------------------------")
+
+            text_blob = "\n".join(options)
+            if keyword.lower() in text_blob.lower():
+                found = [
+                    line.strip()
+                    for line in text_blob.split("\n")
+                    if keyword.lower() in line.lower() and line.strip()
+                ]
+                if found:
+                    matches_by_keyword[keyword] = found
 
         browser.close()
-    return matches
+    return matches_by_keyword
 
 
-def notify(matches):
+def notify(matches_by_keyword):
     if not NTFY_TOPIC:
         log("[경고] NTFY_TOPIC이 설정되지 않아 알림을 보내지 못했습니다.")
         return
-    message = f"'{KEYWORD}' 유닛 발견!\n\n" + "\n".join(matches)
+
+    lines = []
+    for keyword, units in matches_by_keyword.items():
+        lines.append(f"[{keyword}]")
+        lines.extend(units)
+        lines.append("")
+
+    message = "\n".join(lines).strip()
+    title = ", ".join(matches_by_keyword.keys()) + " 유닛 발견!"
+
     try:
         requests.post(
             f"https://ntfy.sh/{NTFY_TOPIC}",
             data=message.encode("utf-8"),
             headers={
-                "Title": f"{KEYWORD} 유닛 등록됨!".encode("utf-8"),
+                "Title": title.encode("utf-8"),
                 "Priority": "urgent",
                 "Tags": "rotating_light,house",
             },
@@ -142,4 +165,4 @@ if __name__ == "__main__":
         log("일치하는 유닛 발견:", found)
         notify(found)
     else:
-        log(f"'{KEYWORD}' 포함된 유닛 없음. (정상 종료)")
+        log(f"감시 중인 키워드({', '.join(KEYWORDS)}) 포함된 유닛 없음. (정상 종료)")

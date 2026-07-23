@@ -27,5 +27,5 @@ jobs:
       - name: Run checker
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          KEYWORD: '550 Clinton'
+          KEYWORDS: '550 Clinton'
         run: python check_units.py

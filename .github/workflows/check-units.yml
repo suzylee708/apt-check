@@ -1,10 +1,10 @@
 name: Check 550 Clinton Avenue Unit
 
 on:
-  schedule:
-    # 10분마다 실행 (GitHub 서버 상황에 따라 몇 분 지연될 수 있음)
-    - cron: '*/5 * * * *'
-  workflow_dispatch: {} # Actions 탭에서 수동 실행 버튼도 사용 가능
+  workflow_dispatch: {}   # Actions 탭에서 수동 실행 버튼도 사용 가능
+  # 참고: GitHub 내부 schedule 트리거는 활동량 적은 저장소에서
+  # 실행 빈도가 들쭉날쭉해서 제거했습니다. 대신 외부 cron 서비스가
+  # GitHub API(workflow_dispatch)를 호출해 이 워크플로우를 실행합니다.
 
 jobs:
   check:
@@ -17,7 +17,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
@@ -27,5 +27,5 @@ jobs:
       - name: Run checker
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          KEYWORDS: '550 Clinton'
+          KEYWORDS: "550 Clinton"
         run: python check_units.py

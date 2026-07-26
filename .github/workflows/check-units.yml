@@ -27,5 +27,5 @@ jobs:
       - name: Run checker
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          KEYWORDS: "550 Clinton, Eight80, 1010 Pacific, Atlantic BK, 1057 Atlantic"
+          KEYWORDS: "550 Clinton, Eight80, 1010 Pacific, Atlantic BK, 1057 Atlantic, The Grand"
         run: python check_units.py

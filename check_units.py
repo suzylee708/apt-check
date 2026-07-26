@@ -76,7 +76,9 @@ def check_units():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not DEBUG)
         page = browser.new_page()
-        page.goto(FORM_URL, wait_until="networkidle", timeout=30000)
+        page.goto(FORM_URL, wait_until="load", timeout=45000)
+        # SPA라 로드 후에도 약간의 렌더링 시간이 더 필요할 수 있어 잠깐 대기
+        page.wait_for_timeout(2000)
 
         if DEBUG:
             page.screenshot(path="debug_1_loaded.png")
